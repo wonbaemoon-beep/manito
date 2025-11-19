@@ -142,13 +142,12 @@
     <div id="login-admin-fields" style="display:none;">
       <div class="field-row">
         <label for="login-admin-name">관리자 이름:</label><br />
-        <input type="text" id="login-admin-name" value="admin" />
+        <input type="text" id="login-admin-name" placeholder="관리자 이름을 입력하세요" />
       </div>
       <div class="field-row">
         <label for="login-admin-password">비밀번호:</label><br />
-        <input type="password" id="login-admin-password" />
+        <input type="password" id="login-admin-password" placeholder="비밀번호를 입력하세요" />
       </div>
-      </p>
     </div>
 
     <button id="btn-login">로그인</button>
@@ -186,7 +185,7 @@
     <h2>1. 참가자 리스트 확인 & 마니또 설정</h2>
     <p class="small">
       - 아래 텍스트 영역에는 현재 참가자 이름 목록이 표시됩니다.<br/>
-      - 이 버전에서는 기본적으로 제공된 21명 명단이 고정으로 사용됩니다.<br/>
+      - 기본 상태에서는 제공된 21명 명단이 고정으로 들어가 있습니다.<br/>
       - “추첨하기 & 저장하기”를 누르면, <strong>자기 자신이 마니또로 나오지 않도록</strong> 랜덤 매칭을 생성합니다.<br/>
       - “재추첨”을 누르면 <strong>이름/비밀번호는 유지</strong>하고, 마니또만 다시 배치합니다.
     </p>
@@ -223,7 +222,7 @@
   </div>
 
   <script>
-    // ===== 기본 참가자 이름 & 비밀번호 (고정) =====
+    // ===== 기본 참가자 이름 & 비밀번호 & 초기 매칭(고정) =====
     const DEFAULT_NAMES = [
       "정여주",
       "박강성",
@@ -272,6 +271,15 @@
       "TU4uKQL4"  // 김태원
     ];
 
+    // 간단한 고정 derangement (원형 회전: i -> i+1, 마지막은 0으로)
+    const DEFAULT_TARGETS = [
+      1,  2,  3,  4,  5,
+      6,  7,  8,  9, 10,
+      11, 12, 13, 14, 15,
+      16, 17, 18, 19, 20,
+      0
+    ];
+
     // ===== UTF-8 대응 Base64 유틸 =====
     function encodeBase64(str) {
       return btoa(unescape(encodeURIComponent(str)));
@@ -280,7 +288,8 @@
       return decodeURIComponent(escape(atob(str)));
     }
 
-    const LOCAL_STORAGE_KEY = "manitoGame_v3_fixed";
+    // 이전 버전과 구분하기 위한 key
+    const LOCAL_STORAGE_KEY = "manitoGame_v5_fixedInit";
 
     // ===== 게임 상태 (전역) =====
     // currentGame = { names: string[], targets: number[], passwords: string[] }
@@ -337,16 +346,15 @@
       if (Array.isArray(data.passwords) && data.passwords.length === n) {
         passwords = data.passwords.slice();
       } else if (arraysEqual(data.names, DEFAULT_NAMES)) {
-        // 이름이 기본 명단과 같다면, 기본 비밀번호 사용
+        // 기본 명단이면 기본 비밀번호 사용
         passwords = DEFAULT_PASSWORDS.slice();
       } else {
-        // 그 외 경우에는 빈 문자열로 채움
         passwords = Array(n).fill("");
       }
       return { names: data.names.slice(), targets: data.targets.slice(), passwords };
     }
 
-    // 초기 로드: hash 우선, 없으면 localStorage, 그래도 없으면 기본 명단 사용
+    // 초기 로드: hash 우선, 없으면 localStorage, 그래도 없으면 기본 명단 + 고정 매칭
     function loadGame() {
       const fromHash = loadGameFromHash();
       if (fromHash) return fromHash;
@@ -354,11 +362,11 @@
       const fromLS = loadGameFromLocalStorage();
       if (fromLS) return fromLS;
 
-      // 아무 데이터도 없다면 기본 명단으로 새로 생성
+      // 아무 데이터도 없다면 기본 명단 + 고정 매칭 사용
       if (DEFAULT_NAMES.length > 1) {
         const names = DEFAULT_NAMES.slice();
         const passwords = DEFAULT_PASSWORDS.slice();
-        const targets = generateDerangement(names.length);
+        const targets = DEFAULT_TARGETS.slice();
         const game = { names, targets, passwords };
         saveGame(game);
         return game;
@@ -461,7 +469,7 @@
 
       document.getElementById("login-user-password").value = "";
       document.getElementById("login-admin-password").value = "";
-      document.getElementById("login-admin-name").value = "admin";
+      document.getElementById("login-admin-name").value = "";
       document.getElementById("participant-info").textContent = "";
       document.getElementById("participant-mani").textContent = "";
     }
@@ -591,12 +599,43 @@
         resetView();
       });
 
-      // 관리자: 추첨하기 & 저장하기
+      // 관리자: 추첨하기 & 저장하기 (명단 수정 가능)
       const btnGenerate = document.getElementById("btn-generate");
       btnGenerate.addEventListener("click", () => {
-        // 이 버전에서는 기본적으로 currentGame 또는 DEFAULT_NAMES를 사용
-        let names = DEFAULT_NAMES.slice();
-        let passwords = DEFAULT_PASSWORDS.slice();
+        const raw = namesInput.value;
+        const names = raw
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+
+        if (names.length < 2) {
+          alert("참가자는 최소 2명 이상이어야 합니다.");
+          return;
+        }
+
+        // 비밀번호: 기존 게임과 이름이 같으면 유지, 기본 명단이면 기본 비번, 아니면 새로 생성
+        let passwords;
+        if (
+          currentGame &&
+          arraysEqual(currentGame.names, names) &&
+          Array.isArray(currentGame.passwords) &&
+          currentGame.passwords.length === names.length
+        ) {
+          passwords = currentGame.passwords.slice();
+        } else if (arraysEqual(names, DEFAULT_NAMES)) {
+          passwords = DEFAULT_PASSWORDS.slice();
+        } else {
+          // 새 명단인 경우 랜덤 비밀번호 생성
+          const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+          passwords = names.map(() => {
+            let pw = "";
+            for (let i = 0; i < 8; i++) {
+              const idx = Math.floor(Math.random() * chars.length);
+              pw += chars[idx];
+            }
+            return pw;
+          });
+        }
 
         try {
           const targets = generateDerangement(names.length);
@@ -636,4 +675,3 @@
   </script>
 </body>
 </html>
-

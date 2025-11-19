@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>온라인 마니또 - 번호 매칭</title>
+  <title>온라인 마니또 - 로그인 & 관리</title>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -31,7 +31,7 @@
     button:hover {
       background: #f0f0f0;
     }
-    select, input[type="text"], input[type="number"] {
+    select, input[type="text"], input[type="password"], input[type="number"] {
       padding: 0.35rem 0.5rem;
       font-size: 0.95rem;
     }
@@ -80,53 +80,92 @@
       font-size: 1.2rem;
       font-weight: 600;
     }
-    #admin-section {
-      border-top: 1px dashed #ccc;
-      margin-top: 2rem;
-      padding-top: 1.5rem;
-    }
     #game-status {
       font-size: 0.85rem;
       color: #444;
+      margin-bottom: 0.5rem;
     }
-    #participant-result {
+    #participant-info, #participant-mani {
       margin-top: 0.75rem;
-      font-weight: bold;
-      font-size: 1.05rem;
+    }
+    .login-role {
+      margin-bottom: 0.5rem;
+    }
+    .login-box {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      background: #fafafa;
+    }
+    .field-row {
+      margin: 0.4rem 0;
     }
   </style>
 </head>
 <body>
   <div class="top-bar">
-    <div class="top-bar-title">온라인 마니또 - 번호로만 알려주는 페이지</div>
+    <div class="top-bar-title">온라인 마니또</div>
     <div>
-      <button id="btn-admin-toggle">관리자 모드</button>
+      <button id="btn-logout" style="display:none;">로그아웃</button>
     </div>
   </div>
 
   <div id="game-status"></div>
 
-  <!-- 참가자용 화면 -->
-  <div id="participant-section">
-    <span class="badge">참가자 화면</span>
-    <h1>내 마니또 번호 확인</h1>
-    <p>
-      진행자가 이미 추첨을 완료한 뒤에 접속하셔야 합니다.<br/>
-      아래에서 <strong>본인 이름</strong>을 선택하고,
-      <strong>“마니또 번호 확인”</strong> 버튼을 누르시면<br/>
-      <u>마니또의 정체는 보이지 않고</u>,
-      <strong>해당 마니또의 번호(1 ~ 인원수)</strong>만 확인할 수 있습니다.
-    </p>
+  <!-- 로그인 섹션 -->
+  <div id="login-section" class="login-box">
+    <span class="badge">로그인</span>
+    <h2>역할 선택 및 로그인</h2>
 
-    <div>
-      <label for="participant-name-select">본인 이름 선택:</label><br/>
-      <select id="participant-name-select">
-        <option value="">-- 이름을 선택하세요 --</option>
-      </select>
-      <button id="btn-show-target">마니또 번호 확인</button>
+    <div class="login-role">
+      <label><input type="radio" name="login-role" value="user" checked> 참가자</label>
+      &nbsp;
+      <label><input type="radio" name="login-role" value="admin"> 관리자</label>
     </div>
 
-    <div id="participant-result"></div>
+    <!-- 참가자용 로그인 필드 -->
+    <div id="login-user-fields">
+      <div class="field-row">
+        <label for="login-user-name">이름 선택:</label><br />
+        <select id="login-user-name">
+          <option value="">-- 이름을 선택하세요 --</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label for="login-user-password">비밀번호 (8자리):</label><br />
+        <input type="password" id="login-user-password" maxlength="32" />
+      </div>
+    </div>
+
+    <!-- 관리자용 로그인 필드 -->
+    <div id="login-admin-fields" style="display:none;">
+      <div class="field-row">
+        <label for="login-admin-name">관리자 이름:</label><br />
+        <input type="text" id="login-admin-name" value="admin" />
+      </div>
+      <div class="field-row">
+        <label for="login-admin-password">비밀번호:</label><br />
+        <input type="password" id="login-admin-password" />
+      </div>
+      <p class="small">
+        기본값: 이름 <code>admin</code>, 비밀번호 <code>486</code>
+      </p>
+    </div>
+
+    <button id="btn-login">로그인</button>
+    <p class="small" style="margin-top:0.5rem;">
+      ※ 참가자는 관리자로부터 미리 전달받은 <strong>8자리 비밀번호</strong>로 로그인합니다.<br/>
+      ※ 관리자는 먼저 로그인해서 명단과 마니또를 설정해 두어야 합니다.
+    </p>
+  </div>
+
+  <!-- 참가자 화면 -->
+  <div id="participant-section" style="display:none;">
+    <span class="badge">참가자 화면</span>
+    <h1>마니또 확인 & 미션</h1>
+    <div id="participant-info"></div>
+    <div id="participant-mani" style="font-weight:bold;"></div>
 
     <div class="notice-box">
       <h2>미션 / 공지</h2>
@@ -143,32 +182,33 @@
     </div>
   </div>
 
-  <!-- 관리자용 화면 -->
-  <div id="admin-section" style="display:none;">
+  <!-- 관리자 화면 -->
+  <div id="admin-section" style="display:none; margin-top:2rem; border-top:1px dashed #ccc; padding-top:1.5rem;">
     <span class="badge">관리자 화면</span>
-    <h2>1. 참가자 리스트 입력 & 추첨</h2>
+    <h2>1. 참가자 리스트 입력 & 비밀번호/마니또 설정</h2>
     <p class="small">
       - 참가자 이름을 한 줄에 한 명씩 입력해 주세요.<br/>
-      - <strong>중복 이름은 가급적 피해주세요.</strong> (동명이인이면 구분 가능한 표기를 권장)<br/>
-      - “추첨하기”를 누르면, <strong>자기 자신이 마니또로 나오지 않도록</strong> 번호 매칭을 생성합니다.<br/>
-      - 추첨이 완료되면, 페이지 주소(URL)의 뒤쪽 <code>#game=...</code> 부분에
-        매칭 정보가 저장됩니다. 이 주소 전체를 참가자에게 공유하시면 됩니다.
+      - <strong>동명이인</strong>이 있을 경우, 괄호 등을 사용해 구분 가능한 이름으로 적어 주세요.<br/>
+      - “추첨하기 & 저장하기”를 누르면, <strong>자기 자신이 마니또로 나오지 않도록</strong> 랜덤 매칭을 생성합니다.<br/>
+      - 기존에 저장된 매칭이 있고, 이름 목록이 동일하면 <strong>기존 비밀번호를 유지</strong>하고 마니또만 새로 배치합니다.<br/>
     </p>
     <textarea id="names-input" placeholder="예)\n홍길동\n김철수\n이영희\n..."></textarea><br/>
-    <button id="btn-generate">추첨하기 (자기 자신 제외)</button>
+    <button id="btn-generate">추첨하기 & 저장하기</button>
+    &nbsp;
+    <button id="btn-reshuffle">재추첨 (이름/비밀번호 유지)</button>
 
-    <h2>2. 번호 & 마니또 번호 매칭표 (관리자 전용)</h2>
+    <h2>2. 참가자/비밀번호/마니또 매칭표</h2>
     <p class="small">
-      아래 표는 <strong>비밀번호 486을 알고 있는 관리자만 확인</strong>하는 용도입니다.<br/>
-      “번호”는 사람에게 부여된 번호, “마니또 번호”는 그 사람이 챙겨야 할 대상의 번호입니다.<br/>
-      참가자에게는 <u>자기 마니또의 번호만</u> 알려주고, 번호가 누구인지는 관리자가 이 표를 보고 판단하시면 됩니다.
+      - 아래 표는 관리자만 확인 가능한 정보입니다.<br/>
+      - 참가자에게는 각자 <strong>이름 + 비밀번호</strong>만 개별적으로 알려주시면 됩니다.
     </p>
     <table>
       <thead>
         <tr>
           <th>번호</th>
           <th>이름</th>
-          <th>마니또 번호</th>
+          <th>비밀번호(8자리)</th>
+          <th>마니또 이름</th>
         </tr>
       </thead>
       <tbody id="admin-table-body">
@@ -180,7 +220,7 @@
     <p class="small">
       추첨 이후, 이 페이지 주소(URL)를 통째로 복사해서 참가자에게 전달해 주세요.<br/>
       주소 끝에 <code>#game=...</code>가 붙어 있어야 합니다. 그 상태로 열면<br/>
-      참가자 화면에서 이름을 선택했을 때, 같은 매칭으로 마니또 번호가 표시됩니다.
+      참가자들은 로그인 화면에서 자신의 이름/비밀번호로 접속해 마니또 이름을 확인할 수 있습니다.
     </p>
   </div>
 
@@ -193,8 +233,34 @@
       return decodeURIComponent(escape(atob(str)));
     }
 
+    const LOCAL_STORAGE_KEY = "manitoGame_v2";
+
     // ===== 게임 상태 (전역) =====
-    let currentGame = null; // { names: string[], targets: number[] }
+    // currentGame = { names: string[], targets: number[], passwords: string[] }
+    let currentGame = null;
+    let loggedInRole = null;       // "user" | "admin"
+    let loggedInUserIndex = null;  // 참가자 인덱스 (user인 경우)
+
+    // 간단 비교
+    function arraysEqual(a, b) {
+      if (!Array.isArray(a) || !Array.isArray(b)) return false;
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false;
+      }
+      return true;
+    }
+
+    // 랜덤 8자리 비밀번호 (영문 대/소문자 + 숫자)
+    function randomPassword8() {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      let pw = "";
+      for (let i = 0; i < 8; i++) {
+        const idx = Math.floor(Math.random() * chars.length);
+        pw += chars[idx];
+      }
+      return pw;
+    }
 
     // hash 에서 매칭 정보 로드
     function loadGameFromHash() {
@@ -204,22 +270,62 @@
       try {
         const json = decodeBase64(b64);
         const data = JSON.parse(json);
-        if (Array.isArray(data.names) && Array.isArray(data.targets) &&
-            data.names.length === data.targets.length) {
-          return data;
-        }
+        return normalizeGame(data);
       } catch (e) {
         console.error("hash decode error", e);
       }
       return null;
     }
 
-    // 매칭 정보를 hash 에 저장
-    function saveGameToHash(game) {
+    // localStorage 에서 매칭 정보 로드
+    function loadGameFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        return normalizeGame(data);
+      } catch (e) {
+        console.error("localStorage decode error", e);
+      }
+      return null;
+    }
+
+    // 게임 데이터 구조 정규화
+    function normalizeGame(data) {
+      if (!data || !Array.isArray(data.names) || !Array.isArray(data.targets)) {
+        return null;
+      }
+      const n = data.names.length;
+      if (data.targets.length !== n) return null;
+
+      let passwords = [];
+      if (Array.isArray(data.passwords) && data.passwords.length === n) {
+        passwords = data.passwords.slice();
+      } else {
+        // 패스워드가 없으면 일단 빈 문자열로 채움 (관리자가 다시 저장하면 새로 생성하도록)
+        passwords = Array(n).fill("");
+      }
+      return { names: data.names.slice(), targets: data.targets.slice(), passwords };
+    }
+
+    // 초기 로드: hash 우선, 없으면 localStorage
+    function loadGame() {
+      const fromHash = loadGameFromHash();
+      if (fromHash) return fromHash;
+      const fromLS = loadGameFromLocalStorage();
+      return fromLS;
+    }
+
+    // 매칭 정보를 hash + localStorage 에 저장
+    function saveGame(game) {
       const json = JSON.stringify(game);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, json);
+      } catch (e) {
+        console.error("localStorage save error", e);
+      }
       const b64 = encodeBase64(json);
-      const base = window.location.origin + window.location.pathname;
-      window.location.replace(base + "#game=" + b64);
+      window.location.hash = "#game=" + b64;
     }
 
     // 자기 자신이 안 나오는 derangement 생성
@@ -247,22 +353,20 @@
       }
     }
 
-    // 참가자 셀렉트 박스 내용 갱신
-    function refreshParticipantSelect(game) {
-      const sel = document.getElementById("participant-name-select");
-      // 기본 옵션 유지, 나머지 삭제
+    // 참가자 로그인용 셀렉트 박스 내용 갱신
+    function refreshLoginUserSelect(game) {
+      const sel = document.getElementById("login-user-name");
       sel.innerHTML = '<option value="">-- 이름을 선택하세요 --</option>';
       if (!game) return;
-
       game.names.forEach((name, idx) => {
         const opt = document.createElement("option");
-        opt.value = String(idx); // 인덱스를 값으로 사용
+        opt.value = String(idx);
         opt.textContent = name;
         sel.appendChild(opt);
       });
     }
 
-    // 관리자 표 갱신
+    // 관리자 표 갱신 (번호 / 이름 / 비밀번호 / 마니또 이름)
     function refreshAdminTable(game) {
       const tbody = document.getElementById("admin-table-body");
       tbody.innerHTML = "";
@@ -272,12 +376,14 @@
       for (let i = 0; i < n; i++) {
         const tr = document.createElement("tr");
         const num = i + 1;
-        const targetNum = game.targets[i] + 1; // 1부터 시작
-
+        const targetIndex = game.targets[i];
+        const targetName = game.names[targetIndex];
+        const pw = game.passwords[i] || "";
         tr.innerHTML = `
           <td>${num}</td>
           <td>${game.names[i]}</td>
-          <td>${targetNum}</td>
+          <td>${pw}</td>
+          <td>${targetName}</td>
         `;
         tbody.appendChild(tr);
       }
@@ -289,30 +395,108 @@
       if (!game) {
         el.textContent = "현재 설정된 마니또 매칭이 없습니다. (관리자가 추첨을 먼저 진행해야 합니다)";
       } else {
-        el.textContent = `현재 참가자 수: ${game.names.length}명 / 이 매칭 정보는 주소의 #game=...에 포함되어 있습니다.`;
+        el.textContent = `현재 참가자 수: ${game.names.length}명 / 이 매칭 정보는 이 브라우저와 주소의 #game=...에 저장되어 있습니다.`;
       }
     }
 
-    // ===== 메인 초기화 =====
+    // 로그인/화면 표시 상태 초기화
+    function resetView() {
+      loggedInRole = null;
+      loggedInUserIndex = null;
+
+      document.getElementById("login-section").style.display = "block";
+      document.getElementById("participant-section").style.display = "none";
+      document.getElementById("admin-section").style.display = "none";
+      document.getElementById("btn-logout").style.display = "none";
+
+      // 로그인 필드 초기화
+      document.getElementById("login-user-password").value = "";
+      document.getElementById("login-admin-password").value = "";
+      document.getElementById("login-admin-name").value = "admin";
+      document.getElementById("participant-info").textContent = "";
+      document.getElementById("participant-mani").textContent = "";
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
-      // 1) hash 에서 게임 정보 로드
-      currentGame = loadGameFromHash();
-      refreshParticipantSelect(currentGame);
+      // 1) 초기 게임 정보 로드
+      currentGame = loadGame();
+      refreshLoginUserSelect(currentGame);
       refreshAdminTable(currentGame);
       refreshGameStatus(currentGame);
 
-      // 2) 참가자: 마니또 번호 확인 버튼
-      const btnShowTarget = document.getElementById("btn-show-target");
-      btnShowTarget.addEventListener("click", () => {
-        const resultEl = document.getElementById("participant-result");
-        if (!currentGame) {
-          alert("아직 매칭 정보가 없습니다. 진행자에게 문의해 주세요.");
+      // 로그인 역할 라디오에 따라 필드 표시 전환
+      const roleRadios = document.getElementsByName("login-role");
+      const userFields = document.getElementById("login-user-fields");
+      const adminFields = document.getElementById("login-admin-fields");
+
+      function updateLoginFields() {
+        let role = "user";
+        for (const r of roleRadios) {
+          if (r.checked) {
+            role = r.value;
+            break;
+          }
+        }
+        if (role === "admin") {
+          userFields.style.display = "none";
+          adminFields.style.display = "block";
+        } else {
+          userFields.style.display = "block";
+          adminFields.style.display = "none";
+        }
+      }
+      roleRadios.forEach((r) => {
+        r.addEventListener("change", updateLoginFields);
+      });
+      updateLoginFields();
+
+      // 로그인 버튼
+      const btnLogin = document.getElementById("btn-login");
+      btnLogin.addEventListener("click", () => {
+        // 현재 선택된 역할 확인
+        let role = "user";
+        for (const r of roleRadios) {
+          if (r.checked) {
+            role = r.value;
+            break;
+          }
+        }
+
+        if (role === "admin") {
+          const adminName = document.getElementById("login-admin-name").value.trim();
+          const adminPw = document.getElementById("login-admin-password").value;
+          if (adminName !== "admin" || adminPw !== "486") {
+            alert("관리자 이름 또는 비밀번호가 올바르지 않습니다.");
+            return;
+          }
+          // 관리자 로그인 성공
+          loggedInRole = "admin";
+          loggedInUserIndex = null;
+
+          document.getElementById("login-section").style.display = "none";
+          document.getElementById("participant-section").style.display = "none";
+          document.getElementById("admin-section").style.display = "block";
+          document.getElementById("btn-logout").style.display = "inline-block";
+
+          // 현재 게임이 있으면 textarea 에 이름 목록 채우기
+          if (currentGame && currentGame.names) {
+            document.getElementById("names-input").value = currentGame.names.join("\n");
+          } else {
+            document.getElementById("names-input").value = "";
+          }
           return;
         }
-        const sel = document.getElementById("participant-name-select");
+
+        // 참가자 로그인
+        if (!currentGame) {
+          alert("아직 저장된 매칭 정보가 없습니다. 진행자에게 문의해 주세요.");
+          return;
+        }
+        const sel = document.getElementById("login-user-name");
         const idxStr = sel.value;
+        const pwInput = document.getElementById("login-user-password").value;
         if (!idxStr) {
-          alert("먼저 본인 이름을 선택해 주세요.");
+          alert("먼저 이름을 선택해 주세요.");
           return;
         }
         const idx = parseInt(idxStr, 10);
@@ -320,52 +504,96 @@
           alert("선택 정보에 문제가 있습니다. 다시 시도해 주세요.");
           return;
         }
-        const targetIndex = currentGame.targets[idx];
-        const targetNumber = targetIndex + 1; // 1부터 시작
-        resultEl.textContent = `당신의 마니또 번호는 ${targetNumber}번입니다.`;
-      });
-
-      // 3) 관리자 모드 토글 버튼
-      const btnAdminToggle = document.getElementById("btn-admin-toggle");
-      const adminSection = document.getElementById("admin-section");
-      btnAdminToggle.addEventListener("click", () => {
-        if (adminSection.style.display === "none") {
-          const input = prompt("관리자 비밀번호를 입력하세요.");
-          if (input === null) return; // 취소
-          if (input === "486") {
-            adminSection.style.display = "block";
-          } else {
-            alert("비밀번호가 올바르지 않습니다.");
-          }
-        } else {
-          adminSection.style.display = "none";
+        const expectedPw = currentGame.passwords[idx];
+        if (!expectedPw || pwInput !== expectedPw) {
+          alert("비밀번호가 올바르지 않습니다.");
+          return;
         }
+
+        // 참가자 로그인 성공
+        loggedInRole = "user";
+        loggedInUserIndex = idx;
+
+        const myName = currentGame.names[idx];
+        const myTargetIndex = currentGame.targets[idx];
+        const myTargetName = currentGame.names[myTargetIndex];
+
+        document.getElementById("login-section").style.display = "none";
+        document.getElementById("admin-section").style.display = "none";
+        document.getElementById("participant-section").style.display = "block";
+        document.getElementById("btn-logout").style.display = "inline-block";
+
+        document.getElementById("participant-info").textContent =
+          "로그인한 참가자: " + myName;
+        document.getElementById("participant-mani").textContent =
+          "당신의 마니또는 \"" + myTargetName + "\" 입니다.";
       });
 
-      // 4) 관리자: 추첨하기 버튼
+      // 로그아웃 버튼
+      const btnLogout = document.getElementById("btn-logout");
+      btnLogout.addEventListener("click", () => {
+        resetView();
+      });
+
+      // 관리자: 추첨하기 & 저장하기
       const btnGenerate = document.getElementById("btn-generate");
       btnGenerate.addEventListener("click", () => {
         const raw = document.getElementById("names-input").value;
         const names = raw
           .split(/\r?\n/)
-          .map(s => s.trim())
-          .filter(s => s.length > 0);
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
 
         if (names.length < 2) {
           alert("참가자는 최소 2명 이상이어야 합니다.");
           return;
         }
 
+        // 기존 게임과 이름 리스트가 동일하면 비밀번호 유지, 아니면 새로 생성
+        let passwords;
+        if (
+          currentGame &&
+          arraysEqual(currentGame.names, names) &&
+          Array.isArray(currentGame.passwords) &&
+          currentGame.passwords.length === names.length
+        ) {
+          passwords = currentGame.passwords.slice();
+        } else {
+          passwords = names.map(() => randomPassword8());
+        }
+
         try {
           const targets = generateDerangement(names.length);
-          currentGame = { names, targets };
-          saveGameToHash(currentGame);
-          refreshParticipantSelect(currentGame);
+          currentGame = { names, targets, passwords };
+          saveGame(currentGame);
+          refreshLoginUserSelect(currentGame);
           refreshAdminTable(currentGame);
           refreshGameStatus(currentGame);
-          alert("추첨이 완료되었습니다.\n주소창의 URL 전체를 복사해서 참가자에게 공유해 주세요.");
+          alert("추첨 및 저장이 완료되었습니다.\n참가자에게는 각자의 이름과 비밀번호를 개별 전달해 주세요.\n페이지 주소(URL)도 함께 공유해 주셔야 합니다.");
         } catch (e) {
           alert(e.message || "매칭 생성 중 오류가 발생했습니다.");
+        }
+      });
+
+      // 관리자: 재추첨 (이름/비밀번호 유지)
+      const btnReshuffle = document.getElementById("btn-reshuffle");
+      btnReshuffle.addEventListener("click", () => {
+        if (!currentGame || !currentGame.names || currentGame.names.length < 2) {
+          alert("먼저 참가자 명단과 매칭을 생성해 주세요.");
+          return;
+        }
+        const names = currentGame.names.slice();
+        const passwords = currentGame.passwords.slice();
+        try {
+          const targets = generateDerangement(names.length);
+          currentGame = { names, targets, passwords };
+          saveGame(currentGame);
+          refreshLoginUserSelect(currentGame);
+          refreshAdminTable(currentGame);
+          refreshGameStatus(currentGame);
+          alert("재추첨이 완료되었습니다. (이름/비밀번호는 유지, 마니또만 다시 배치되었습니다.)");
+        } catch (e) {
+          alert(e.message || "재추첨 중 오류가 발생했습니다.");
         }
       });
     });

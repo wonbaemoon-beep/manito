@@ -92,6 +92,7 @@
     #participant-mani {
       font-size: 1.4rem;
       margin-top: 1rem;
+      font-weight: bold; /* 마니또 공개 문장 볼드 처리 */
     }
     .login-role {
       margin-bottom: 0.5rem;
@@ -199,7 +200,7 @@
       <button id="btn-save-compliment">칭찬 저장하기</button>
     </div>
 
-    <!-- 1차 미션 칭찬 게시판 -->
+    <!-- 1차 미션 칭찬 게시판 (사용자 모드) -->
     <div class="notice-box" id="compliment-board-box">
       <h2>1차 미션 칭찬 게시판</h2>
       <table>
@@ -213,9 +214,7 @@
           <!-- JS로 채워짐 -->
         </tbody>
       </table>
-      <p class="small">
-        ※ 작성자의 이름은 게시판에 표시되지 않으며, 마니또 이름과 칭찬만 공유됩니다.
-      </p>
+      <!-- 요청에 따라 안내 문구 삭제 -->
     </div>
   </div>
 
@@ -258,7 +257,8 @@
       아래 칭찬 게시판은 참가자들이 1차 미션을 수행하면서 저장한 내용을 보여줍니다.<br/>
       동일한 페이지 주소(#game=...)를 사용하는 모든 접속자에게 동일하게 표시됩니다.
     </p>
-    <table>
+    <button id="btn-clear-compliments">칭찬 게시판 전체 삭제</button>
+    <table style="margin-top:0.75rem;">
       <thead>
         <tr>
           <th>마니또 이름</th>
@@ -338,7 +338,6 @@
       return decodeURIComponent(escape(atob(str)));
     }
 
-    // 이전 버전과 구분하기 위한 key
     const LOCAL_STORAGE_KEY = "manitoGame_v6_withCompliments";
 
     // ===== 게임 상태 (전역) =====
@@ -719,7 +718,6 @@
             return;
           }
           if (!lastUserTargetName) {
-            // 안전 차원: 다시 계산
             const idx = loggedInUserIndex;
             const myTargetIndex = currentGame.targets[idx];
             lastUserTargetName = currentGame.names[myTargetIndex];
@@ -785,7 +783,6 @@
         } else if (arraysEqual(names, DEFAULT_NAMES)) {
           passwords = DEFAULT_PASSWORDS.slice();
         } else {
-          // 새 명단인 경우 랜덤 비밀번호 생성
           const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
           passwords = names.map(() => {
             let pw = "";
@@ -799,7 +796,6 @@
 
         try {
           const targets = generateDerangement(names.length);
-          // 명단 변경 시 칭찬 게시판은 초기화 (원하는 경우 유지 로직도 가능)
           const compliments = [];
           currentGame = { names, targets, passwords, compliments };
           saveGame(currentGame);
@@ -836,6 +832,23 @@
           alert(e.message || "재추첨 중 오류가 발생했습니다.");
         }
       });
+
+      // 관리자: 칭찬 게시판 전체 삭제
+      const btnClearCompliments = document.getElementById("btn-clear-compliments");
+      if (btnClearCompliments) {
+        btnClearCompliments.addEventListener("click", () => {
+          if (!currentGame || !Array.isArray(currentGame.compliments) || currentGame.compliments.length === 0) {
+            alert("삭제할 칭찬이 없습니다.");
+            return;
+          }
+          const ok = confirm("정말로 칭찬 게시판의 모든 내용을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.");
+          if (!ok) return;
+          currentGame.compliments = [];
+          saveGame(currentGame);
+          refreshComplimentBoards(currentGame);
+          alert("칭찬 게시판이 모두 삭제되었습니다.");
+        });
+      }
     });
   </script>
 </body>
